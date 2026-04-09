@@ -4,7 +4,9 @@
       "Bash(find E:/dev/embarcados/energy_analizer/analisador -maxdepth 3 -name *.md -o -name *.txt)",
       "Bash(find E:/dev/embarcados/energy_analizer/analisador/components -type f \\\\\\(-name *.c -o -name *.h \\\\\\))",
       "Bash(idf.py build:*)",
-      "Bash(find /e/dev/embarcados/energy_analizer/analisador -type f -name *.md)"
+      "Bash(find /e/dev/embarcados/energy_analizer/analisador -type f -name *.md)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
