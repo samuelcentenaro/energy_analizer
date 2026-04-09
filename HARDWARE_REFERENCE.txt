@@ -1,0 +1,215 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                   ENERGY ANALYZER - HARDWARE AT A GLANCE                      ║
+║                            Quick Reference Card                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ MICROCONTROLLER: ESP32 (Xtensa Dual-Core, 240 MHz, 160 KB RAM, 4 MB Flash)  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+════════════════════════════════════════════════════════════════════════════════
+
+                            PIN SUMMARY (11 connections)
+
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ PURPOSE            │ ESP32 PIN │ TYPE        │ FUNCTION         │
+    ├─────────────────────────────────────────────────────────────────┤
+    │ ADC Data (SDA)     │ GPIO21    │ I2C Master  │ ADS1015 + OLED    │
+    │ ADC Clock (SCL)    │ GPIO22    │ I2C Master  │ ADS1015 + OLED    │
+    │ Voltage Input      │ A0-A1     │ Analog Diff │ ZMPT101B → ADS1015│
+    │ Current Input      │ A2-A3     │ Analog Diff │ SCT013 → ADS1015  │
+    │ Button UP          │ GPIO35    │ GPIO Input  │ Menu nav (active low)
+    │ Button DOWN        │ GPIO34    │ GPIO Input  │ Menu nav (active low)
+    │ Button SELECT      │ GPIO32    │ GPIO Input  │ Confirm (active low)
+    │ Status LED         │ GPIO2     │ GPIO Output │ Blue LED (internal)
+    │ Debug Serial (TX)  │ GPIO1     │ UART Out    │ 115200 baud      │
+    │ Debug Serial (RX)  │ GPIO3     │ UART In     │ 115200 baud      │
+    │ Power Supply       │ 3.3V/GND  │ Power       │ ~200mA @ 3.3V    │
+    └─────────────────────────────────────────────────────────────────┘
+
+════════════════════════════════════════════════════════════════════════════════
+
+                            SENSOR CONNECTIONS
+
+    ╔════════════════════════════╦════════════════════════════╗
+    ║  VOLTAGE MEASUREMENT       ║  CURRENT MEASUREMENT       ║
+    ╠════════════════════════════╬════════════════════════════╣
+    ║ Sensor: ZMPT101B           ║ Sensor: SCT013-030         ║
+    ║ Input: 0-250V AC           ║ Input: 0-30A AC            ║
+    ║ Output: 0-3.3V DC          ║ Output: 0-1V AC (burden)   ║
+    ║ ADC: ADS1015 A0-A1 (Diff)  ║ ADC: ADS1015 A2-A3 (Diff)  ║
+    ║ Rate: 1600 SPS             ║ Rate: 1600 SPS             ║
+    ║ Accuracy: ±2% (calibrated) ║ Accuracy: ±1.5% (calib.)  ║
+    ║ Notes:                      ║ Notes:                     ║
+    ║  - Differential input       ║  - Burden resistor 18Ω    ║
+    ║  - PGA gain: 2              ║  - PGA gain: 1            ║
+    ║  - 12-bit resolution        ║  - 12-bit resolution      ║
+    ╚════════════════════════════╩════════════════════════════╝
+
+════════════════════════════════════════════════════════════════════════════════
+
+                          DISPLAY & USER INTERFACE
+
+    ╔══════════════════════════════════════════════════════════════╗
+    ║  SSD1306 OLED 128×64 pixels (I2C @ 0x3C, 400 kHz)          ║
+    ╠══════════════════════════════════════════════════════════════╣
+    ║  Connections: SDA (GPIO21), SCL (GPIO22), 3.3V, GND        ║
+    ║  Pull-ups: 4.7kΩ to 3.3V (required!)                       ║
+    ║  Update Rate: 200 ms (5 Hz refresh)                        ║
+    ║                                                             ║
+    ║  Pages:                                                     ║
+    ║  ├─ Page 1: Configuration menu (WiFi, calibrate)           ║
+    ║  ├─ Page 2: Main measurements (V, I, F, THD, H-odd)        ║
+    ║  └─ Page 3: Harmonic spectrum (bar chart, 1-19 odd)        ║
+    ║                                                             ║
+    ║  Buttons: UP (GPIO35), DOWN (GPIO34), SELECT (GPIO32)      ║
+    ║  ├─ Debounce: 40 ms (20 HW + 20 SW)                        ║
+    ║  ├─ Response: < 100 ms                                     ║
+    ║  └─ Long press (>1s): Force restart / menu reset           ║
+    ║                                                             ║
+    ║  Status LED (GPIO2):                                        ║
+    ║  ├─ ON solid:   WiFi ok, measuring                         ║
+    ║  ├─ Blink 1Hz:  WiFi connecting                            ║
+    ║  ├─ Blink 5Hz:  Error / SAG-SWELL                          ║
+    ║  └─ OFF:        Critical error                             ║
+    ╚══════════════════════════════════════════════════════════════╝
+
+════════════════════════════════════════════════════════════════════════════════
+
+                          CONNECTIVITY
+
+    WiFi: 802.11n (2.4 GHz, on-board antenna)
+          ├─ Mode: Station (STA)
+          ├─ Scan for available networks (user selection)
+          ├─ Range: ~30-50m (open space)
+          ├─ Connection: 20s timeout, auto-reconnect
+          └─ Max power: 20 dBm (100 mW)
+
+    MQTT: mosquitto.org (or local broker)
+          ├─ Port: 1883 (non-encrypted v1.0)
+          ├─ QoS: 0 (best effort)
+          ├─ Keep-alive: 60 seconds
+          ├─ Publish rate: Every 5 seconds
+          ├─ Topics: 20+ for all measurements + status
+          └─ Payload: JSON (2 decimal places)
+
+════════════════════════════════════════════════════════════════════════════════
+
+                          SAMPLING & ANALYSIS
+
+    ADC Sampling:
+    ├─ Converter: ADS1015 (Texas Instruments)
+    ├─ Interface: I2C @ 0x48 (400 kHz)
+    ├─ Resolution: 12-bit (0-2047 counts)
+    ├─ Channels: 2 differential (voltage + current)
+    ├─ Data Rate: 1600 SPS per channel (alternating)
+    ├─ PGA Gains: 2 (voltage), 1 (current)
+    ├─ Input Range: ±2.048V (voltage), ±4.096V (current)
+    └─ Processing: Continuous conversion mode
+
+    Signal Processing:
+    ├─ FFT: 256-point (32 ms window, Hann window)
+    ├─ RMS: Real-time calculation
+    ├─ Frequency: 60 Hz nominal (55-65 Hz range)
+    ├─ Harmonics: 1,3,5,7,9,11,13,15,17,19 (odd only)
+    ├─ THD: Total Harmonic Distortion %
+    ├─ SAG/SWELL: Detection with magnitude tracking
+    ├─ Flicker: Pst (short) and Plt (long)
+    └─ Power Factor: cos(φ) calculation
+
+════════════════════════════════════════════════════════════════════════════════
+
+                          POWER BUDGET
+
+    Current Consumption:
+    ├─ ESP32 (idle):         10 mA
+    ├─ ESP32 (WiFi):        150 mA
+    ├─ ESP32 (WiFi TX peak):200 mA
+    ├─ Sensors:             ~7 mA
+    ├─ Display (50%):       ~15 mA
+    ├─ Status LED:          ~5 mA
+    └─ Total (WiFi):        ~190 mA average
+
+    Power Supply:
+    ├─ Minimum: 500 mA @ 5V → 3.3V regulator
+    ├─ Recommended: 1000 mA @ 5V → future expansion
+    ├─ Source: USB or wall adapter
+    └─ Voltage: 3.3V with bypass capacitors
+
+════════════════════════════════════════════════════════════════════════════════
+
+                          CALIBRATION
+
+    Method: True RMS multimeter reference
+    Points: 3 points per sensor (voltage: 100V, 150V, 220V)
+                                  (current: 5A, 15A, 30A)
+    Storage: NVS Flash (survives power cycles)
+    Accuracy: ±2% voltage, ±1.5% current (after calibration)
+    Interface: OLED menu + buttons (no code changes needed)
+
+════════════════════════════════════════════════════════════════════════════════
+
+                          QUICK WIRING CHECKLIST
+
+    ┌──────────────────────────────────────────────────────────┐
+    │ MUST DO:                                                 │
+    │ ☐ Connect ADS1015 SDA/SCL to GPIO21/22 (shared with OLED)│
+    │ ☐ Add 4.7kΩ pull-ups to GPIO21/22 → 3.3V               │
+    │ ☐ Connect ZMPT101B output to ADS1015 A0(+) and A1(-)    │
+    │ ☐ Connect SCT013 output to ADS1015 A2(+) and A3(-)      │
+    │ ☐ Add voltage divider on ZMPT101B output (if needed)     │
+    │ ☐ Add 18Ω burden + capacitor on SCT013 output           │
+    │ ☐ Common ground to all components                        │
+    │ ☐ 3.3V bypass capacitor near ESP32 (100µF)              │
+    │                                                          │
+    │ BUTTONS (debounce):                                      │
+    │ ☐ All 3 buttons to GND (active low)                     │
+    │ ☐ Pull-up resistors (10kΩ or internal)                  │
+    │ ☐ Capacitor across button (~0.1µF) for filtering       │
+    │                                                          │
+    │ TESTING:                                                │
+    │ ☐ Measure all DC voltages (3.3V, sensor outputs)         │
+    │ ☐ Verify I2C communication (ADS1015 @ 0x48, OLED @ 0x3C)│
+    │ ☐ Test buttons with idf.py monitor                     │
+    │ ☐ Calibrate against true RMS multimeter                │
+    │ ☐ Run 24-hour stability test                           │
+    └──────────────────────────────────────────────────────────┘
+
+════════════════════════════════════════════════════════════════════════════════
+
+                          DEVELOPMENT TOOLS
+
+    Hardware:
+    ├─ ESP32 dev board (USB CH340/CP2102)
+    ├─ True RMS Multimeter (±0.5% minimum)
+    ├─ AC Current Clamp Meter (±1% minimum)
+    ├─ Oscilloscope (optional for FFT verification)
+    └─ Variable AC power supply (0-250V)
+
+    Software:
+    ├─ ESP-IDF v5.1+ (framework)
+    ├─ VS Code + ESP-IDF extension
+    ├─ xtensa-esp32-elf-gcc (compiler)
+    ├─ Python 3.7+ (for idf.py)
+    └─ Serial monitor: idf.py monitor @ 115200 baud
+
+════════════════════════════════════════════════════════════════════════════════
+
+QUICK START COMMANDS:
+
+    $ cd Energy\ Analizer/
+    $ idf.py set-target esp32
+    $ idf.py menuconfig                    # Configure (optional)
+    $ idf.py build                         # Compile
+    $ idf.py -p /dev/ttyUSB0 flash monitor # Flash + monitor
+    
+    Press [CTRL]+[H] in monitor to see help menu
+
+════════════════════════════════════════════════════════════════════════════════
+
+                    Document: HARDWARE_REFERENCE.txt
+                              Version: 1.0
+                              Date: April 6, 2026
+                              Status: APPROVED
+
+════════════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,29 @@
+# Release-oriented SDKCONFIG overrides for production-candidate builds.
+#
+# This file is intentionally conservative:
+# - keeps single-app partition layout because OTA is out of scope
+# - keeps watchdogs enabled
+# - keeps core dumps disabled
+# - keeps runtime logs at INFO
+# - switches application optimization away from debug
+# - stamps the app image with an explicit baseline version
+
+CONFIG_APP_PROJECT_VER_FROM_CONFIG=y
+CONFIG_APP_PROJECT_VER="1.0.0"
+
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_ENABLE=y
+
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+
+CONFIG_ESP_SYSTEM_PANIC_PRINT_REBOOT=y
+CONFIG_ESP_COREDUMP_ENABLE_TO_NONE=y
+CONFIG_ESP32_ENABLE_COREDUMP_TO_NONE=y
+
+CONFIG_ESP_TASK_WDT_EN=y
+CONFIG_ESP_TASK_WDT_INIT=y
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=5
+
+CONFIG_PARTITION_TABLE_SINGLE_APP=y
+CONFIG_PARTITION_TABLE_FILENAME="partitions_singleapp.csv"

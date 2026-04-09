@@ -1,0 +1,15 @@
+# OTA preparation profile for 2MB flash devices.
+#
+# This profile is intentionally separate from the active production baseline.
+# It prepares the partition layout for OTA validation without silently changing
+# the currently validated single-app configuration.
+
+CONFIG_PARTITION_TABLE_SINGLE_APP=n
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions_ota_2mb.csv"
+CONFIG_PARTITION_TABLE_FILENAME="partitions_ota_2mb.csv"
+
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+CONFIG_APP_ROLLBACK_ENABLE=y
+
+CONFIG_ESP_HTTPS_OTA_DECRYPT_CB=n

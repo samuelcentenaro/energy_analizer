@@ -1,0 +1,546 @@
+================================================================================
+                    ENERGY ANALYZER - HARDWARE DIAGRAM
+                              ESP32 Pinout & Connections
+================================================================================
+
+                                  ┌─────────────┐
+                                  │   ESP32     │
+                                  │ Dual-Core   │
+                                  │ 240 MHz     │
+                                  └──────┬──────┘
+                                         │
+
+================================================================================
+                              POWER SUPPLY (3.3V)
+================================================================================
+
+    ┌────────────────────────────────────────────────────────────────────────┐
+    │  USB POWER or 5V PSU → 3.3V Regulator (AMS1117 or similar)             │
+    │  GND common to all components                                          │
+    └────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                          ADC INPUTS (ADS1015 External ADC)
+================================================================================
+
+    ZMPT101B (Voltage Sensor)           SCT013-030 (Current Sensor)
+    ┌──────────────────────┐            ┌──────────────────────┐
+    │ Input: 0-30A AC      │            │ Input: 0-30A AC      │
+    │ Output: 0-3.3V DC    │            │ Output: 0-1V AC      │
+    │ (with voltage divider│            │ (with burden 18Ω)    │
+    │  and capacitor)      │            │ (no bias needed)     │
+    └──────────┬───────────┘            └──────────┬───────────┘
+               │                                    │
+               │ Differential                        │ Differential
+               ▼                                    ▼
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │  ADS1015 12-bit ADC (I2C @ 0x48)                                   │
+    ├──────────────────────────────────────────────────────────────────────┤
+    │  A0 (+) ◄──── Voltage sensor output (high side)                    │
+    │  A1 (-) ◄──── Ground reference (low side)                          │
+    │  A2 (+) ◄──── Current sensor output (high side)                    │
+    │  A3 (-) ◄──── Ground reference (low side)                          │
+    │                                                                       │
+    │  * 12-bit ADC resolution (0-2047 counts)                            │
+    │  * 1600 SPS data rate per channel                                   │
+    │  * Differential inputs (±2.048V and ±4.096V ranges)                 │
+    │  * I2C interface @ 400 kHz                                          │
+    │  * Programmable gain amplifier (PGA)                                │
+    └──────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                        I2C BUS (ADC + Display Interface)
+================================================================================
+
+    ADS1015 ADC + SSD1306 OLED Display
+    ┌─────────────────────────────────┐
+    │   ADS1015 12-bit ADC            │
+    │   Address: 0x48 (I2C)           │
+    │   Interface: I2C 400 kHz        │
+    │   Supply: 3.3V                  │
+    └──────┬──────────────┬───────────┘
+           │              │
+           │ SDA          │ SCL
+           │ (data)       │ (clock)
+           ▼              ▼
+    ┌─────────────────────────────────┐
+    │   SSD1306 OLED 128×64           │
+    │   Address: 0x3C (I2C)           │
+    │   Interface: I2C 400 kHz        │
+    │   Supply: 3.3V                  │
+    └──────┬──────────────┬───────────┘
+           │              │
+           │ SDA          │ SCL
+           │ (data)       │ (clock)
+           ▼              ▼
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │  ESP32 I2C Master (I2C_NUM_0)                                        │
+    ├──────────────────────────────────────────────────────────────────────┤
+    │  GPIO21 (I2C_SDA) ◄────┐                                             │
+    │  GPIO22 (I2C_SCL) ◄────┤  4.7kΩ pull-up resistors to 3.3V           │
+    │                         │  (shared between ADC and display)          │
+    │                         │                                             │
+    │  * Frequency: 400 kHz                                               │
+    │  * Transaction timeout: 1000 ms                                     │
+    │  * ADC update rate: Continuous (1600 SPS)                           │
+    │  * Display update rate: 200 ms (5 Hz)                               │
+    │  * Addresses: 0x48 (ADS1015), 0x3C (OLED)                           │
+    └──────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                        GPIO INPUTS (User Interface)
+================================================================================
+
+    Button UP              Button DOWN            Button SELECT
+    ┌──────────┐          ┌──────────┐           ┌──────────┐
+    │  Push    │          │  Push    │           │  Push    │
+    │ Button   │          │ Button   │           │ Button   │
+    └────┬─────┘          └────┬─────┘           └────┬─────┘
+         │ Active Low           │ Active Low          │ Active Low
+         │ (Pull-up internal)   │ (Pull-up internal)  │ (Pull-up internal)
+         ▼                      ▼                      ▼
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │  ESP32 GPIO Input                                                    │
+    ├──────────────────────────────────────────────────────────────────────┤
+    │  GPIO35 (Input) ◄──── Button UP                                      │
+    │  GPIO34 (Input) ◄──── Button DOWN                                    │
+    │  GPIO32 (Input) ◄──── Button SELECT                                  │
+    │                                                                       │
+    │  * Debounce: 20 ms (hardware) + 20 ms (software) = 40 ms total      │
+    │  * Response time: < 100 ms                                           │
+    │  * Long press detection: 1000 ms                                     │
+    │  * Interrupt mode (GPIO ISR)                                         │
+    │  * Auto-repeat not needed (responsive UI)                            │
+    └──────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                        GPIO OUTPUT (Status Indicator)
+================================================================================
+
+    Status LED (Blue)
+    ┌──────────────┐
+    │   220Ω       │  ┌─────┬─────┐
+    │  Resistor    │  │     │LED  │
+    │             ├──┤ │ ◄──┤     │
+    │             │  │ │    └─────┘
+    └──────┬──────┘  └─────┬──────┘
+           │               │ GND
+           ▼
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │  ESP32 GPIO Output                                                   │
+    ├──────────────────────────────────────────────────────────────────────┤
+    │  GPIO2 (Output, High = ON) ──► Status LED                            │
+    │                                                                       │
+    │  Status Logic:                                                       │
+    │  ├─ LED ON (solid):        WiFi connected, measuring normally       │
+    │  ├─ LED BLINK (1Hz):       WiFi connecting / data buffering         │
+    │  ├─ LED BLINK (5Hz):       Error state / SAG or SWELL detected      │
+    │  └─ LED OFF:               No power or critical error               │
+    │                                                                       │
+    │  Note: GPIO2 is internal ESP32 LED, no external resistor needed     │
+    │        if using external, add 220Ω series resistor                  │
+    └──────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                      UART / DEBUG SERIAL (Optional)
+================================================================================
+
+    VS Code / USB Serial Monitor
+    ┌──────────────────┐
+    │  Debug Terminal  │
+    │  115200 baud     │
+    │  8N1             │
+    └──────┬───────────┘
+           │
+           │ USB ◄──►
+           │
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │  ESP32 UART0 (Debug Serial)                                          │
+    ├──────────────────────────────────────────────────────────────────────┤
+    │  GPIO1 (UART_TX_IO) ──► Serial output (debug logs)                   │
+    │  GPIO3 (UART_RX_IO) ◄── Serial input (future: parameter upload)      │
+    │                                                                       │
+    │  * Baud Rate: 115200 (standard ESP-IDF)                             │
+    │  * Data Bits: 8                                                      │
+    │  * Stop Bits: 1                                                      │
+    │  * Parity: None (8N1)                                                │
+    │  * Purpose: Development logging via idf.py monitor                   │
+    │                                                                       │
+    │  NOTE: Usually routed through USB → CH340 / CP2102 IC               │
+    │        on development boards (auto-reset with DTR signal)            │
+    └──────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                      WiFi + MQTT (Built-in)
+================================================================================
+
+    WiFi Network (2.4 GHz, WPA2)          MQTT Broker
+    ┌──────────────────────────┐          ┌──────────────┐
+    │  Home / Office WiFi      │          │ mosquitto.org│
+    │  or Router               │          │ or local IP  │
+    │ (SSID selectable via UI) │          │ Port: 1883   │
+    └──────────┬───────────────┘          └──────┬───────┘
+               │                                  │
+               │ 802.11n                         │ TCP/IP
+               │ On-chip antenna                 │
+               ▼                                  ▼
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │  ESP32 WiFi Radio (Built-in)                                         │
+    ├──────────────────────────────────────────────────────────────────────┤
+    │  * Standard: 802.11n (2.4 GHz)                                       │
+    │  * Max Power: 20 dBm (100 mW)                                        │
+    │  * Range: ~30-50 m (obstacle-free)                                   │
+    │  * Mode: Station (STA)                                               │
+    │  * Connection Timeout: 20 seconds                                    │
+    │  * Reconnect: Exponential backoff (1s → 30s max)                     │
+    │                                                                       │
+    │  MQTT Features:                                                      │
+    │  ├─ QoS Level: 0 (best effort)                                       │
+    │  ├─ Keep-Alive: 60 seconds                                           │
+    │  ├─ Publish Interval: 5 seconds                                      │
+    │  ├─ Topics: 20+ for measurements + harmonics                         │
+    │  ├─ Payload Format: JSON (2 decimal places)                          │
+    │  └─ Auto-reconnect on broker loss                                    │
+    └──────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                          COMPLETE PIN SUMMARY
+================================================================================
+
+    PIN NAME          GPIO#    TYPE      PURPOSE
+    ═══════════════════════════════════════════════════════════════════════
+    POWER
+    ───────────────────────────────────────────────────────────────────────
+    +3.3V             VCC      IN        Power Supply (3.3V regulated)
+    GND               GND      -         Ground (common return)
+
+    ADC INPUTS (Analog Measurements)
+    ───────────────────────────────────────────────────────────────────────
+    GPIO35            ADC1_7   Analog IN Voltage sensor (ZMPT101B)
+    GPIO34            ADC1_6   Analog IN Current sensor (SCT013-030)
+
+    I2C BUS (Display)
+    ───────────────────────────────────────────────────────────────────────
+    GPIO21            I2C_SDA  I/O       OLED Display SDA line
+    GPIO22            I2C_SCL  I/O       OLED Display SCL line
+
+    GPIO INPUTS (Buttons)
+    ───────────────────────────────────────────────────────────────────────
+    GPIO35            D35      IN        Button UP (active low, pull-up)
+    GPIO34            D34      IN        Button DOWN (active low, pull-up)
+    GPIO32            D32      IN        Button SELECT (active low, pull-up)
+
+    GPIO OUTPUT (Status)
+    ───────────────────────────────────────────────────────────────────────
+    GPIO2             D2       OUT       Status LED (built-in blue)
+
+    UART DEBUG (Optional)
+    ───────────────────────────────────────────────────────────────────────
+    GPIO1             TX0      OUT       UART TX (debug serial)
+    GPIO3             RX0      IN        UART RX (debug serial)
+
+    SPECIAL PINS
+    ───────────────────────────────────────────────────────────────────────
+    EN                -        IN        Enable (keep HIGH)
+    GPIO0             D0       IN        Boot mode (LOW=bootloader, HIGH=app)
+    RTC_GPIO16        -        -         Connected to PSRAM (do not use)
+
+
+================================================================================
+                           SIGNAL FLOW DIAGRAM
+================================================================================
+
+                                    ┌─────────────┐
+                                    │   AC POWER  │
+                     Voltage ────►  │  Mains 220V │  ◄──── Current
+                     Sensor         │   60 Hz     │        Sensor
+                    (ZMPT101B)      └──────┬──────┘        (SCT013)
+                         │                 │                  │
+                         │ 0-3.3V DC       │              0-3.3V DC
+                         │                 │                  │
+                         ▼                 ▼                  ▼
+                      ┌─────────────────────────────┐
+                      │   ESP32 ADC                 │
+                      │  (12-bit, 8 kHz)            │
+                      │  GPIO35    GPIO34           │
+                      └──────────┬──────────────────┘
+                                 │
+                                 │ Raw ADC values
+                                 ▼
+                      ┌─────────────────────────────┐
+                      │  Signal Processing          │
+                      │  ├─ RMS Calculation         │
+                      │  ├─ Frequency Detection     │
+                      │  ├─ FFT Analysis            │
+                      │  ├─ Harmonic Extraction     │
+                      │  ├─ SAG/SWELL Detection     │
+                      │  └─ Quality Metrics         │
+                      └──────────┬──────────────────┘
+                                 │
+                        ┌────────┴────────┐
+                        │                 │
+                        ▼                 ▼
+                   ┌──────────┐    ┌────────────────┐
+                   │ OLED     │    │ WiFi/MQTT      │
+                   │ Display  │    │                │
+                   │ I2C      │    │ Publish every  │
+                   │ 200ms    │    │ 5 seconds      │
+                   │ Update   │    │                │
+                   └──────────┘    └────────────────┘
+                        ▲
+                        │
+                   ┌────────────┐
+                   │ Button     │
+                   │ Debounced  │
+                   │ Input      │
+                   │ 40ms       │
+                   └────────────┘
+
+
+================================================================================
+                        CIRCUIT PROTECTION
+================================================================================
+
+    1. VOLTAGE DIVIDER (ZMPT101B input)
+       ┌───────────┐
+       │  ~250V AC │
+       │ (mains)   │
+       └─────┬─────┘
+             │
+           ╱R1╲  (High resistor, typically 100kΩ or 220kΩ)
+           ╲  ╱
+             ├──► (to capacitor → ADC)
+             │
+           ╱R2╲  (Lower resistor, typically 10kΩ)
+           ╲  ╱
+             │
+            GND
+
+    
+    2. BURDEN RESISTOR (SCT013-030 output)
+       ┌──────────────────┐
+       │ SCT013-030       │
+       │ 0-30A AC Input   │
+       └────┬────┬────────┘
+            │    │ 
+            R    C    (18Ω burden + capacitor)
+            │    │
+            ├────┴──────┬───────► (to bias + ADC)
+                        │
+                        R        (bias resistor network for 1.65V offset)
+                        │
+                        ├────► ADC pin (GPIO34)
+                        │
+                       GND
+
+
+    3. BROWNOUT PROTECTION (internal ESP32)
+       ├─ Automatically resets if Vcc < 2.8V
+       ├─ Prevents flash corruption
+       └─ Enabled in menuconfig
+
+    4. WATCHDOG TIMER (internal ESP32)
+       ├─ 10 second timeout
+       ├─ Resets if task blocks scheduler
+       └─ Enabled for stability
+
+    5. CAPACITIVE COUPLING (optional on ADC inputs)
+       ├─ Block DC offset (especially current sensor)
+       ├─ Pass-through AC signal
+       └─ Typical: 10µF ceramic capacitor
+
+
+================================================================================
+                        POWER BUDGET
+================================================================================
+
+    Component                Current Draw      Voltage
+    ────────────────────────────────────────────────────
+    ESP32 (Idle)                  10 mA        3.3V
+    ESP32 (WiFi Active)          150 mA        3.3V
+    ESP32 (WiFi TX Peak)         200 mA        3.3V
+    ZMPT101B Sensor               ~5 mA        3.3V
+    SCT013-030 Sensor            ~2 mA        3.3V
+    SSD1306 OLED Display         ~15 mA        3.3V
+    3 Buttons (pullups)           <1 mA        3.3V
+    Status LED (220Ω)            ~5 mA        3.3V
+    ────────────────────────────────────────────────────
+    TOTAL (WiFi idle)            180 mA        3.3V
+    TOTAL (WiFi active TX)       230 mA        3.3V
+
+    ►Recommended PSU: 500 mA @ 5V (feeds 3.3V regulator)
+    ►USB power sufficient if < 100m cable length
+
+
+================================================================================
+                        DEVELOPMENT SETUP
+================================================================================
+
+    Hardware needed:
+    ├─ ESP32 development board (with USB CH340/CP2102)
+    ├─ Protoboard or breadboard
+    ├─ Jumper wires
+    ├─ 4.7kΩ resistors × 2 (I2C pull-ups)
+    ├─ 100kΩ + 10kΩ resistors (voltage divider)
+    ├─ 18Ω + capacitor burden (current sensor)
+    ├─ 220Ω resistor (LED)
+    ├─ SSD1306 OLED module (pre-assembled)
+    ├─ ZMPT101B voltage sensor module (pre-assembled)
+    ├─ SCT013-030 current sensor + burden resistor
+    ├─ 3 push buttons
+    └─ 1 LED + resistor (status indicator)
+
+    Software needed:
+    ├─ ESP-IDF v5.1+
+    ├─ VS Code + ESP-IDF extension
+    ├─ Compiler: xtensa-esp32-elf-gcc
+    └─ Python 3.7+ (for idf.py tools)
+
+
+================================================================================
+                        DEBUGGING CONNECTIONS
+================================================================================
+
+    Serial Monitor (via USB):
+    ┌──────────────────────┐
+    │  VS Code Terminal    │
+    │  $ idf.py monitor    │
+    │  115200 baud, 8N1    │
+    └──────┬───────────────┘
+           │ USB
+
+    This shows:
+    ├─ Boot messages
+    ├─ Log output (ESP_LOGI, ESP_LOGW, ESP_LOGE)
+    ├─ Task states
+    ├─ Memory/stack usage
+    └─ Any crashes or assertions
+
+
+================================================================================
+                        TESTING SETUP (Calibration)
+================================================================================
+
+    Instrumentation needed:
+    ├─ True RMS Multimeter (for voltage reference)
+    │  └─ Measure at least 3 points (100V, 150V, 220V)
+    │
+    ├─ AC Power Supply (variable, 0-250V)
+    │  └─ Variable load resistor (for current test)
+    │
+    ├─ Current Clamp Meter (accurate, range 0-30A)
+    │  └─ Measure at least 3 points (5A, 15A, 30A)
+    │
+    └─ Oscilloscope (optional, for FFT verification)
+       └─ Verify 8 kHz ADC sampling visually
+
+
+================================================================================
+                    QUICK PINOUT REFERENCE CARD
+================================================================================
+
+                          ESP32 Development Board
+
+    ┌──────────────────────────────────────────────────────────────┐
+    │  USB          GND  RX  TX EN  V33 D35 D34 D32 D2  D23 D22    │
+    │  ¦            ¦    ¦   ¦  ¦   ¦   ^   ^   ^   ^   ¦   ^     │
+    │  ¦            │    │   │  │   │   │   │   │   │   │   │     │
+    │  │            │    │   │  │   │   │   │   │   │   │   │     │
+    │  (CH340)      │    │   │  │   │   │   │   │   │   │   │     │
+    │                                                               │
+    │  PWR  GND     D26 D25 D33 D32 D35 D34 V33 GND RST D23 D19   │
+    │  5V   ¦       ¦   ¦   ¦   ¦   ¦   ¦   ¦   ¦   ¦   ¦   ¦     │
+    │  |    │       │   │   │   │   │   │   │   │   │   │   │     │
+    │  |____|_______|___|___|___|___|___|___|___|___|___|___|___   │
+    │                                                               │
+    │  GPIO Connections Reference:                                │
+    │  ├─ GPIO21, GPIO22: I2C (OLED SDA, SCL)                    │
+    │  ├─ GPIO35, GPIO34: ADC (Voltage, Current)                 │
+    │  ├─ GPIO32, GPIO35, GPIO34: Buttons (UP, DOWN, SELECT)    │
+    │  ├─ GPIO2: Status LED                                      │
+    │  ├─ GPIO1, GPIO3: UART TX, RX (Debug)                     │
+    │  └─ GND: Common ground (all sensors, buttons, display)     │
+    └──────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                    NETWORK CONNECTIVITY DIAGRAM
+================================================================================
+
+                           ┌─────────────────┐
+                           │  WiFi Network   │
+                           │  2.4 GHz WPA2   │
+                           └────────┬────────┘
+                                    │
+                                    │ 802.11n
+                                    │
+                           ┌────────▼────────┐
+                           │   ESP32 WiFi    │
+                           │   (Built-in)    │
+                           └────────┬────────┘
+                                    │
+                                    │ TCP/IP
+                                    │
+                           ┌────────▼────────┐
+                           │  MQTT Broker    │
+                           │  mosquitto.org  │
+                           │  Port: 1883     │
+                           └─────────────────┘
+                                    │
+                         ┌──────────┴──────────┐
+                         │                     │
+                    ┌────▼─────┐       ┌──────▼────┐
+                    │ Subscribe │       │ Publish   │
+                    │ (future)  │       │ (every 5s)│
+                    │ Config    │       │ Metrics   │
+                    │ Updates   │       │ + Status  │
+                    └────────────┘      └───────────┘
+                                              │
+                                    ┌─────────▼────────┐
+                                    │ Grafana / BI Tool│
+                                    │ Post-analysis    │
+                                    │ Historical data  │
+                                    │ Trends & Reports │
+                                    └──────────────────┘
+
+
+================================================================================
+                            SYSTEM ARCHITECTURE
+================================================================================
+
+            ┌─────────────────────────────────────────────┐
+            │           MAIN APPLICATION LOOP             │
+            │  (FreeRTOS Scheduler with 4 Tasks)         │
+            └──────────────┬──────────────────────────────┘
+                           │
+           ┌───────────────┼───────────────┬──────────────┐
+           ▼               ▼               ▼              ▼
+      ┌─────────┐  ┌────────────┐  ┌────────────┐  ┌──────────┐
+      │  ADC    │  │ ANALYSIS   │  │    UI      │  │  COMM    │
+      │ Task    │  │   Task     │  │   Task     │  │  Task    │
+      │ Prio: 3 │  │ Prio: 2    │  │ Prio: 2    │  │Prio: 1   │
+      │         │  │            │  │            │  │          │
+      │ 8 kHz   │  │ FFT, RMS   │  │ Display    │  │WiFi/MQTT │
+      │ sampling│  │ THD, HAR   │  │ Buttons    │  │Publish   │
+      │         │  │ SAG/SWELL  │  │ Debounce   │  │ 5s rate  │
+      └────┬────┘  └────┬───────┘  └─────┬──────┘  └──────┬───┘
+           │            │                │               │
+           ▼            ▼                ▼               ▼
+      ┌─────────────────────────────────────────────────────┐
+      │       Shared Memory (Mutexes & Queues)              │
+      │  measurement_data_t                                 │
+      │  quality_metrics_t                                  │
+      │  mqtt_payload_t                                     │
+      └─────────────────────────────────────────────────────┘
+
+
+================================================================================
+                         FILE: HW_CONNECTIONS.txt
+           Saved: Energy Analizer/.github/docs/HW_CONNECTIONS.txt
+================================================================ EOF ================

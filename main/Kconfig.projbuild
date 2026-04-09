@@ -1,0 +1,36 @@
+menu "Energy Analyzer"
+
+    menu "MQTT Defaults"
+
+        config APP_MQTT_BROKER_HOST
+            string "MQTT broker host or IP"
+            default "mqtt.local"
+            help
+                Hostname, IPv4 address, or full broker URL used as the default
+                MQTT target for this firmware. If a full URL is provided, such
+                as mqtt://192.168.1.10:1883, it will be used as-is.
+
+        config APP_MQTT_BROKER_PORT
+            int "MQTT broker port"
+            range 1 65535
+            default 1883
+            help
+                Default MQTT broker port used when the broker host is not
+                provided as a full URL.
+
+        config APP_MQTT_CLIENT_ID
+            string "MQTT client ID"
+            default "energy-analyzer-001"
+            help
+                Default MQTT client identifier used by the device.
+
+        config APP_MQTT_KEEP_ALIVE
+            int "MQTT keep-alive (seconds)"
+            range 15 300
+            default 60
+            help
+                Keep-alive interval sent to the MQTT broker.
+
+    endmenu
+
+endmenu
