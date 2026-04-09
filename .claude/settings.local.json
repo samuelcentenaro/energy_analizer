@@ -6,7 +6,10 @@
       "Bash(idf.py build:*)",
       "Bash(find /e/dev/embarcados/energy_analizer/analisador -type f -name *.md)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git remote:*)",
+      "Bash(GIT_TRACE=1 git push -u origin main)"
     ]
   }
 }
