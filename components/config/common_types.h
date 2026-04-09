@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include "esp_err.h"
 
 // ============================================================================
@@ -212,8 +213,7 @@ typedef struct {
 /// @brief Safe string copy with null termination
 /// @note Works with both char arrays and uint8_t arrays
 #define SAFE_STRCPY(dest, src, size) do { \
-    strncpy((char *)(dest), (src), (size) - 1); \
-    ((char *)(dest))[(size) - 1] = '\0'; \
+    (void)snprintf((char *)(dest), (size), "%s", (src)); \
 } while(0)
 
 
