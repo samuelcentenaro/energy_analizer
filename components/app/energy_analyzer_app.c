@@ -62,7 +62,6 @@ typedef enum {
 
 static bool g_oled_ready = false;
 static bool g_ads1015_hal_ready = false;
-static bool g_ads1015_ready = false;
 static bool g_measurement_ready = false;
 static uint8_t g_oled_back_buffer[OLED_PAGE_COUNT][OLED_WIDTH_PIXELS] = {0};
 static uint8_t g_oled_front_buffer[OLED_PAGE_COUNT][OLED_WIDTH_PIXELS] = {0};
@@ -1019,7 +1018,6 @@ static void app_read_ads1015_raw(void)
             ((g_ads_diag.current_raw - g_ads_diag.current_display_raw) >> UI_FILTER_SHIFT));
     }
 
-    g_ads1015_ready = g_ads_diag.voltage_valid || g_ads_diag.current_valid;
 }
 
 static void app_log_ads1015_status(TickType_t *last_log_tick)
@@ -1459,10 +1457,8 @@ esp_err_t energy_analyzer_app_init(void)
     ret = ads1015_hal_init();
     if (ret == ESP_OK) {
         g_ads1015_hal_ready = true;
-        g_ads1015_ready = false;
     } else {
         g_ads1015_hal_ready = false;
-        g_ads1015_ready = false;
         ESP_LOGW(TAG, "ADS1015 HAL initialization failed: 0x%02x", ret);
     }
 
@@ -1543,8 +1539,7 @@ void energy_analyzer_app_run(void)
     ESP_LOGI(TAG, "Starting Energy Analyzer main loop...");
 
     while (1) {
-        // TODO: Re-enable serial calibration when serial abstraction layer is available
-        // app_process_serial_calibration();
+        // Serial calibration is intentionally out of the active production path.
         app_process_buttons();
         app_refresh_wifi_status();
         app_refresh_mqtt_status();

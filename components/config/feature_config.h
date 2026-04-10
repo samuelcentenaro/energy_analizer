@@ -23,7 +23,7 @@
 #define FEATURE_OLED_DISPLAY     1
 
 /// @brief Enable button interface
-/// @note Implemented in firmware, but hardware validation is still pending
+/// @note Implemented in firmware and already validated in hardware
 #define FEATURE_BUTTON_INTERFACE 1
 
 // ============================================================================
@@ -36,7 +36,8 @@
 /// @brief Enable MQTT publishing
 #define FEATURE_MQTT             1
 
-/// @brief Enable UART debug output
+/// @brief Enable UART-backed runtime logs
+/// @note This flag refers to diagnostic logging, not the retired serial command flow
 #define FEATURE_DEBUG_SERIAL     1
 
 // ============================================================================
